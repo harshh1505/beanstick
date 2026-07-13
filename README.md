@@ -67,12 +67,7 @@ Beanstick solves the broken fiat-to-crypto onramp by acting as a decentralized n
 - [ ] Cloud  
 
 ---
-
-## 🏆 Sponsored Track (Optional)
-
-- [ ] **Expo Track** – Built using Expo  
-- [x] **Neo4j Track** – Uses AuraDB as primary database  
-- [ ] **Base44 Track** – Prototype/Final Product built using Base44  
+ 
 
 **How we used the partner technology:**
 > A critical component of Beanstick's architecture is its ability to map, analyze, and route complex liquidity graphs in real-time. We use Neo4j AuraDB for Agent Reputation Graph modeling (calculating trust scores), Liquidity Routing (executing PageRank and Betweenness Centrality across the Agent Reputation Graph), and Fraud Detection.
