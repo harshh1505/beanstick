@@ -1,0 +1,94 @@
+# keepers/workflows/order-monitor.yaml
+#
+# KeeperHub workflow: every 10 blocks on 0G testnet (chain 16602), read all
+# LOCKED orders from the Escrow contract; for each one whose deadline has
+# passed, call expire(orderId) on-chain and notify Discord.
+#
+# Register with:
+#   kh workflow create --file keepers/workflows/order-monitor.yaml
+#
+# Substitute ${ESCROW_ADDRESS} and ${DISCORD_WEBHOOK} via KeeperHub secrets,
+# and bind a wallet via the {{wallet}} placeholder in the dashboard.
+
+name: "Order Monitor & Slash"
+description: "Monitor escrow for stuck orders and slash defaults"
+
+trigger:
+  type: "block-interval"
+  network: "16602"   # 0G Galileo testnet
+  interval: 10        # every 10 blocks
+
+nodes:
+  - id: "read-locked"
+    type: "web3/read-contract"
+    config:
+      network: "16602"
+      contractAddress: "${ESCROW_ADDRESS}"
+      functionName: "getLockedOrders"
+      abi: |
+        function getLockedOrders() view returns (uint256[])
+
+  - id: "check-has-locked"
+    type: "condition"
+    config:
+      leftValue: "{{@read-locked.result.length}}"
+      operator: ">"
+      rightValue: "0"
+
+  - id: "for-each-order"
+    type: "for-each"
+    config:
+      items: "{{@read-locked.result}}"
+
+  - id: "get-deadline"
+    type: "web3/read-contract"
+    config:
+      network: "16602"
+      contractAddress: "${ESCROW_ADDRESS}"
+      functionName: "getOrderDeadline"
+      args: ["{{@for-each-order.item}}"]
+      abi: |
+        function getOrderDeadline(uint256 orderId) view returns (uint256)
+
+  - id: "check-expired"
+    type: "condition"
+    config:
+      leftValue: "{{@get-deadline.result}}"
+      operator: "<"
+      rightValue: "{{now}}"
+
+  - id: "expire-order"
+    type: "web3/write-contract"
+    config:
+      network: "16602"
+      contractAddress: "${ESCROW_ADDRESS}"
+      functionName: "expire"
+      args: ["{{@for-each-order.item}}"]
+      walletId: "{{wallet}}"
+      abi: |
+        function expire(uint256 orderId) external
+
+  - id: "notify-discord"
+    type: "discord"
+    config:
+      webhookUrl: "${DISCORD_WEBHOOK}"
+      message: "Order {{@for-each-order.item}} expired and slashed"
+
+edges:
+  - source: "trigger"
+    target: "read-locked"
+  - source: "read-locked"
+    target: "check-has-locked"
+  - source: "check-has-locked"
+    target: "for-each-order"
+    sourceHandle: "true"
+  - source: "for-each-order"
+    target: "get-deadline"
+    sourceHandle: "loop"
+  - source: "get-deadline"
+    target: "check-expired"
+  - source: "check-expired"
+    target: "expire-order"
+    sourceHandle: "true"
+  - source: "expire-order"
+    target: "notify-discord"

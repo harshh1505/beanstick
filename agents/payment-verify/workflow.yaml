@@ -1,0 +1,38 @@
+# agents/payment-verify/workflow.yaml
+#
+# KeeperHub workflow that receives PSP webhooks and forwards them (along with
+# the original X-Webhook-Signature header so HMAC stays verifiable) to the
+# local webhook receiver running this repo's `createWebhookServer`.
+#
+# Register with:
+#   kh workflow create --file agents/payment-verify/workflow.yaml
+#
+# After creation, KeeperHub returns a webhook URL like
+#   https://api.keeperhub.com/webhooks/<workflow-id>
+# Set that as PAYMENT_WEBHOOK_URL in .env, and configure the same URL at each
+# PSP dashboard (Razorpay, Venmo Business, Revolut Business, …).
+
+name: payment-verify
+description: Receives PSP webhooks and triggers escrow release
+
+triggers:
+  - type: webhook
+    path: /payment
+    method: POST
+
+actions:
+  - id: verify-and-forward
+    type: http
+    url: http://localhost:4001/webhook/payment
+    method: POST
+    headers:
+      Content-Type: application/json
+      X-Webhook-Signature: "{{ request.headers['x-webhook-signature'] }}"
+    body: "{{ request.body }}"
+    retry:
+      max_attempts: 3
+      backoff: exponential
+
+  - id: log-result
+    type: log
+    message: "Payment verified for order {{ actions.verify-and-forward.response.orderId }}"

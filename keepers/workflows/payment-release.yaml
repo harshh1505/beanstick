@@ -1,0 +1,66 @@
+# keepers/workflows/payment-release.yaml
+#
+# KeeperHub workflow: triggered via webhook when a fiat payment is verified.
+# Pins evidence to 0G Storage and releases escrow on-chain.
+#
+# Register with:
+#   kh workflow create --file keepers/workflows/payment-release.yaml
+
+name: "Payment Release"
+description: "Verify payment proof and release escrow"
+
+trigger:
+  type: "webhook"
+  config:
+    path: "/payment-verified"
+
+inputs:
+  orderId:
+    type: "string"
+    required: true
+  evidenceHash:
+    type: "string"
+    required: true
+  amount:
+    type: "string"
+    required: true
+  currency:
+    type: "string"
+    required: true
+
+nodes:
+  - id: "log-payment"
+    type: "log"
+    config:
+      message: "Payment verified for order {{inputs.orderId}}: {{inputs.amount}} {{inputs.currency}}"
+
+  - id: "release-escrow"
+    type: "web3/write-contract"
+    config:
+      network: "16602"
+      contractAddress: "${ESCROW_ADDRESS}"
+      functionName: "release"
+      args:
+        - "{{keccak256(inputs.orderId)}}"
+        - "{{inputs.evidenceHash}}"
+      walletId: "{{wallet}}"
+      abi: |
+        function release(bytes32 orderId, bytes32 evidenceHash) external
+
+  - id: "notify-success"
+    type: "webhook"
+    config:
+      url: "${CALLBACK_URL}"
+      method: "POST"
+      body:
+        orderId: "{{inputs.orderId}}"
+        txHash: "{{@release-escrow.txHash}}"
+        status: "released"
+
+edges:
+  - source: "trigger"
+    target: "log-payment"
+  - source: "log-payment"
+    target: "release-escrow"
+  - source: "release-escrow"
+    target: "notify-success"

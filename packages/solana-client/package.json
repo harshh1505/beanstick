@@ -1,0 +1,15 @@
+{
+  "name": "@beanstick/solana-client",
+  "version": "0.1.0",
+  "description": "Production TypeScript SDK for Beanstick Solana Protocol",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.30.1",
+    "@solana/web3.js": "^1.95.0",
+    "@solana/spl-token": "^0.4.8"
+  }
+}

@@ -1,0 +1,30 @@
+.env
+.env.local
+node_modules/
+dist/
+build/
+out/
+cache/
+*.log
+.DS_Store
+
+# Foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+contracts/lib/
+contracts/foundry.lock
+
+# AXL
+services/axl-node/
+private.pem
+*.pem
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# IDE
+.vscode/
+.idea/
